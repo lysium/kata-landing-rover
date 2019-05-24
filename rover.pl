@@ -32,6 +32,7 @@ sub print_planet {
 }
 
 my @planet = <PLANET>;
+close PLANET;
 my $planet_height = scalar @planet;
 my $planet_width = length($planet[0]) - 1; #-1 for newline
 for my $line (@planet) {
