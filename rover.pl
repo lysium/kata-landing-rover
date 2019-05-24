@@ -146,5 +146,6 @@ while (my $command = <COMMANDS>) {
 	}
 }
 print "DONE $x $y $direction\n";
+close COMMANDS;
 
 
