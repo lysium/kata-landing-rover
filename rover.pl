@@ -1,12 +1,14 @@
 #!/usr/bin/env perl -w
 
 use strict;
+use Storable qw(dclone);
 
 my $debug = 0;
-# Usage: rover.pl X Y DIRECTION COMMAND_FILE PLANET_FILE
+# Usage: rover.pl X Y DIRECTION COMMAND_FILE PLANET_FILE [PLANET_TRACE_FILE]
 # Output:
 #        DONE X Y DIRECTION
 #  -or-  OBSTACLE X Y DIRECTION
+# PLANET_TRACE_FILE is name of file where we output planet with trace.
 #
 # Internals:
 # Coordinates for user:
@@ -19,8 +21,12 @@ my $debug = 0;
 #  - top <-> down is first dimension (file is read line-by-line)
 #  - left <-> right is second dimension
 
-my ($x, $y, $direction, $command_file, $planet_file) = @ARGV;
-print "COMMANDS", join(" ", $x, $y, $direction, $command_file, $planet_file), "\n" if $debug;
+my ($x, $y, $direction, $command_file, $planet_file, $planet_trace_file) = @ARGV;
+my $do_trace = defined($planet_trace_file);
+if (!$do_trace) {
+	$planet_trace_file = ""; # for debug output
+}
+print "COMMANDS: ", join(" ", $x, $y, $direction, $command_file, $planet_file, $planet_trace_file), "\n" if $debug;
 open(COMMANDS, "<$command_file") or die;
 open(PLANET, "<$planet_file") or die;
 
@@ -28,6 +34,14 @@ sub print_planet {
 	my $planet = shift;
 	for my $line (@$planet) {
 		print join("  ", @$line), "\n";
+	}
+}
+
+sub write_planet {
+	my ($planet, $file_name) = @_;
+	open(PLANET, ">$file_name") or die;
+	for my $line (@$planet) {
+		print PLANET join("", @$line), "\n";
 	}
 }
 
@@ -43,6 +57,8 @@ for my $line (@planet) {
 
 print "$planet_height x $planet_width\n" if $debug;
 print_planet(\@planet) if $debug;
+
+my @trace_planet = @{ dclone(\@planet) };
 
 sub move_forward {
 	my ($x, $y, $direction) = @_;
@@ -117,8 +133,17 @@ sub wrap_xy {
 	return ($new_x, $new_y);
 }
 
+
 my $FREE_SURFACE = ".";
 my $OBSTACLE = "x";
+my $TRACE = "o";
+
+sub set_trace {
+	my ($trace_planet, $x, $y) = @_;
+	$trace_planet->[$y][$x] = $TRACE;
+}
+
+set_trace(\@trace_planet, $x, $y) if $do_trace;
 
 while (my $command = <COMMANDS>) {
 	chomp $command;
@@ -144,6 +169,11 @@ while (my $command = <COMMANDS>) {
 	} else {
 		($x, $y, $direction) = ($new_x, $new_y, $new_direction);
 	}
+	set_trace(\@trace_planet, $x, $y) if $do_trace;
+}
+if ($do_trace) {
+	print_planet(\@trace_planet);
+	write_planet(\@trace_planet, $planet_trace_file);
 }
 print "DONE $x $y $direction\n";
 close COMMANDS;
